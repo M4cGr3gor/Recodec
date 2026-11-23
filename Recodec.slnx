@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="src/Recodec.Core/Recodec.Core.csproj" />
+  <Project Path="src/Recodec/Recodec.csproj" />
+  <Project Path="src/Recodec.Check/Recodec.Check.csproj" />
+</Solution>

@@ -1,0 +1,67 @@
+<Window x:Class="Recodec.SettingsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Configuración — Recodec" Width="640" SizeToContent="Height" ResizeMode="NoResize"
+        WindowStartupLocation="CenterOwner" Icon="/Recodec.ico" ShowInTaskbar="False">
+    <StackPanel Margin="20,16,20,18">
+        <TextBlock Text="Configuración" FontSize="20" FontWeight="SemiBold" Margin="0,0,0,14" />
+
+        <Border Style="{StaticResource Card}" Padding="18,14">
+            <StackPanel>
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="Idioma favorito" Style="{StaticResource SectionTitle}" />
+                    <Button Style="{StaticResource HelpButton}" CommandParameter="idioma" />
+                </StackPanel>
+                <ComboBox ItemsSource="{Binding LanguageOptions}" SelectedItem="{Binding PreferredLanguage}" Width="240" HorizontalAlignment="Left" Margin="0,10,0,8" />
+                <TextBlock Style="{StaticResource Muted}" FontSize="13"
+                           Text="Al abrir un vídeo se elige el audio en este idioma y sus subtítulos. Si el audio solo está en otro idioma, se queman los subtítulos en tu idioma. Al cambiarlo se vuelve a hacer la selección del vídeo abierto." />
+            </StackPanel>
+        </Border>
+
+        <Border Style="{StaticResource Card}" Padding="18,14">
+            <StackPanel>
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="Tu tele" Style="{StaticResource SectionTitle}" />
+                    <Button Style="{StaticResource HelpButton}" CommandParameter="tele-dlna" />
+                </StackPanel>
+                <DockPanel Margin="0,10,0,8">
+                    <Button DockPanel.Dock="Right" Command="{Binding ShowDevicesCommand}" Margin="8,0,0,0">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Style="{StaticResource IconText}" Text="&#xE721;" />
+                            <TextBlock Style="{StaticResource ButtonLabel}" Text="Buscar en la red…" />
+                        </StackPanel>
+                    </Button>
+                    <ComboBox ItemsSource="{Binding TargetOptions}" SelectedItem="{Binding SelectedTarget}" />
+                </DockPanel>
+                <TextBlock Style="{StaticResource Muted}" FontSize="13"
+                           Text="Recodec comprueba si esta tele aceptará cada vídeo (contenedor, vídeo y audio) y te propone los cambios; solo se aplican si pulsas &quot;Aplicar ajustes para la tele&quot; en la pestaña Salida. &quot;Buscar en la red&quot; le pregunta a tu tele qué formatos admite." />
+            </StackPanel>
+        </Border>
+
+        <Border Style="{StaticResource Card}" Padding="18,14">
+            <StackPanel>
+                <TextBlock Text="Al convertir" Style="{StaticResource SectionTitle}" Margin="0,0,0,8" />
+                <CheckBox Content="Abrir la carpeta al terminar la conversión" IsChecked="{Binding OpenFolderWhenDone}" Margin="0,3" />
+                <CheckBox Content="Recordar la carpeta de destino para los próximos vídeos" IsChecked="{Binding RememberOutputFolder}" Margin="0,3" />
+                <TextBlock Style="{StaticResource Muted}" Margin="28,0,0,0"
+                           Text="Si no está marcada, el vídeo convertido se guarda junto al original." />
+            </StackPanel>
+        </Border>
+
+        <Border Style="{StaticResource Card}" Padding="18,14">
+            <StackPanel>
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="FFmpeg" Style="{StaticResource SectionTitle}" />
+                    <Button Style="{StaticResource HelpButton}" CommandParameter="actualizar" />
+                </StackPanel>
+                <TextBlock Text="{Binding FfmpegStatus}" Margin="0,8,0,8" />
+                <CheckBox Content="Buscar actualizaciones de FFmpeg al arrancar (como mucho una vez al día)" IsChecked="{Binding CheckUpdatesOnStartup}" Margin="0,3" />
+                <Button Content="Buscar ahora" Command="{Binding CheckUpdatesCommand}" HorizontalAlignment="Left" Margin="0,8,0,0" />
+            </StackPanel>
+        </Border>
+
+        <TextBlock Style="{StaticResource Muted}" Margin="2,4,0,14" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"
+                   Text="{Binding SettingsFilePath, StringFormat=La configuración se guarda en {0}}" ToolTip="{Binding SettingsFilePath}" />
+        <Button Content="Cerrar" IsCancel="True" IsDefault="True" HorizontalAlignment="Right" MinWidth="100" Style="{DynamicResource AccentButtonStyle}" />
+    </StackPanel>
+</Window>

@@ -1,0 +1,710 @@
+<Window x:Class="Recodec.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="{Binding WindowTitle}"
+        Width="1060" Height="920" MinWidth="840" MinHeight="640" Icon="/Recodec.ico"
+        WindowStartupLocation="CenterScreen"
+        AllowDrop="True">
+    <Window.Resources>
+        <!-- Separación entre opciones dentro de las pestañas -->
+        <Style x:Key="OptionGrid" TargetType="Grid">
+            <Setter Property="Margin" Value="0,2,0,0" />
+        </Style>
+        <!-- Grupo de opciones que se atenúa cuando está desactivado (los deslizadores Fluent apenas cambian solos) -->
+        <Style x:Key="DimmableGrid" TargetType="Grid" BasedOn="{StaticResource OptionGrid}">
+            <Style.Triggers>
+                <Trigger Property="IsEnabled" Value="False">
+                    <Setter Property="Opacity" Value="0.45" />
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+        <Style x:Key="Field" TargetType="FrameworkElement">
+            <Setter Property="Margin" Value="0,9" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+        <Style x:Key="FieldCombo" TargetType="ComboBox" BasedOn="{StaticResource {x:Type ComboBox}}">
+            <Setter Property="Margin" Value="0,9" />
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+        </Style>
+        <Style x:Key="Hint" TargetType="TextBlock" BasedOn="{StaticResource Muted}">
+            <Setter Property="Margin" Value="0,4,0,0" />
+        </Style>
+        <Style x:Key="Lead" TargetType="TextBlock" BasedOn="{StaticResource Muted}">
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="Margin" Value="0,0,0,12" />
+        </Style>
+        <Style x:Key="Radio" TargetType="RadioButton" BasedOn="{StaticResource {x:Type RadioButton}}">
+            <Setter Property="Margin" Value="0,3" />
+        </Style>
+        <Style x:Key="Check" TargetType="CheckBox" BasedOn="{StaticResource {x:Type CheckBox}}">
+            <Setter Property="Margin" Value="0,3" />
+        </Style>
+    </Window.Resources>
+
+    <Grid Margin="16,10,16,12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />  <!-- barra superior -->
+            <RowDefinition Height="Auto" />  <!-- aviso de actualización -->
+            <RowDefinition Height="Auto" />  <!-- zona de arrastre / cabecera del vídeo -->
+            <RowDefinition Height="*" />     <!-- pestañas -->
+            <RowDefinition Height="Auto" />  <!-- avisos -->
+            <RowDefinition Height="Auto" />  <!-- guardar en -->
+            <RowDefinition Height="Auto" />  <!-- progreso y botones -->
+        </Grid.RowDefinitions>
+
+        <!-- ============ Barra superior ============ -->
+        <DockPanel Grid.Row="0" Margin="0,0,0,12" LastChildFill="False">
+            <TextBlock DockPanel.Dock="Left" Style="{StaticResource IconText}" FontSize="22" Text="&#xE714;" Foreground="{DynamicResource AccentTextFillColorPrimaryBrush}" />
+            <TextBlock DockPanel.Dock="Left" Text="Recodec" FontSize="20" FontWeight="SemiBold" VerticalAlignment="Center" />
+            <Button DockPanel.Dock="Left" Margin="14,0,0,0" Padding="8,2" VerticalAlignment="Center" Background="Transparent" BorderThickness="0"
+                    Command="{Binding CheckUpdatesCommand}" ToolTip="Pulsa para comprobar si hay una versión nueva de FFmpeg">
+                <TextBlock Text="{Binding FfmpegStatus}" Style="{StaticResource Muted}" />
+            </Button>
+            <Button DockPanel.Dock="Right" Command="{Binding HelpCommand}" CommandParameter="inicio" Margin="8,0,0,0">
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Style="{StaticResource IconText}" Text="&#xE897;" />
+                    <TextBlock Style="{StaticResource ButtonLabel}" Text="Ayuda" />
+                </StackPanel>
+            </Button>
+            <Button DockPanel.Dock="Right" Command="{Binding SettingsCommand}" Margin="8,0,0,0" ToolTip="Idioma favorito y preferencias del programa">
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Style="{StaticResource IconText}" Text="&#xE713;" />
+                    <TextBlock Style="{StaticResource ButtonLabel}" Text="Configuración" />
+                </StackPanel>
+            </Button>
+            <Button DockPanel.Dock="Right" Command="{Binding ShowQueueCommand}" Margin="8,0,0,0" ToolTip="Vídeos preparados para convertir uno tras otro">
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Style="{StaticResource IconText}" Text="&#xE8FD;" />
+                    <TextBlock Style="{StaticResource ButtonLabel}" Text="{Binding QueueHeader}" />
+                </StackPanel>
+            </Button>
+            <Button DockPanel.Dock="Right" Command="{Binding OpenCommand}">
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Style="{StaticResource IconText}" Text="&#xE8E5;" />
+                    <TextBlock Style="{StaticResource ButtonLabel}" Text="Abrir vídeo" />
+                </StackPanel>
+            </Button>
+        </DockPanel>
+
+        <!-- ============ Aviso de actualización de FFmpeg ============ -->
+        <Border Grid.Row="1" Style="{StaticResource Card}" Visibility="{Binding UpdateAvailable, Converter={StaticResource Vis}}"
+                Background="{DynamicResource SystemFillColorAttentionBackgroundBrush}">
+            <DockPanel>
+                <TextBlock DockPanel.Dock="Left" Style="{StaticResource IconText}" Text="&#xE896;" />
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Visibility="{Binding IsUpdating, Converter={StaticResource NotVis}}">
+                    <Button Content="Actualizar ahora" Command="{Binding UpdateFfmpegCommand}" Style="{DynamicResource AccentButtonStyle}" Margin="8,0,0,0" />
+                    <Button Content="Ahora no" Command="{Binding SkipUpdateCommand}" Margin="8,0,0,0" />
+                </StackPanel>
+                <StackPanel VerticalAlignment="Center">
+                    <TextBlock Text="{Binding UpdateText}" TextWrapping="Wrap" />
+                    <ProgressBar Height="4" Margin="0,6,0,0" Maximum="100" Value="{Binding UpdateProgress, Mode=OneWay}"
+                                 Visibility="{Binding IsUpdating, Converter={StaticResource Vis}}" />
+                </StackPanel>
+            </DockPanel>
+        </Border>
+
+        <!-- ============ Zona de arrastre (sin vídeo abierto) ============ -->
+        <Border Grid.Row="2" Grid.RowSpan="2" x:Name="DropZone" CornerRadius="12" BorderThickness="2" Margin="0,4,0,0"
+                BorderBrush="{DynamicResource ControlStrokeColorSecondaryBrush}"
+                Background="{DynamicResource SubtleFillColorTransparentBrush}"
+                Visibility="{Binding HasFile, Converter={StaticResource NotVis}}">
+            <Grid>
+                <Rectangle StrokeDashArray="6 4" StrokeThickness="2" RadiusX="12" RadiusY="12" Stroke="{DynamicResource ControlStrongStrokeColorDefaultBrush}" Margin="-2" />
+                <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                    <TextBlock Style="{StaticResource IconText}" Text="&#xE898;" FontSize="40" HorizontalAlignment="Center" Margin="0,0,0,12"
+                               Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                    <TextBlock Text="Arrastra un vídeo aquí" FontSize="20" FontWeight="SemiBold" HorizontalAlignment="Center" />
+                    <TextBlock Text="MKV, MP4, AVI, MOV, M2TS, WebM… · si arrastras varios, se añaden a la cola" Style="{StaticResource Muted}" HorizontalAlignment="Center" Margin="0,6,0,14" />
+                    <Button HorizontalAlignment="Center" Command="{Binding OpenCommand}" Style="{DynamicResource AccentButtonStyle}">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Style="{StaticResource IconText}" Text="&#xE8E5;" />
+                            <TextBlock Style="{StaticResource ButtonLabel}" Text="Abrir vídeo" />
+                        </StackPanel>
+                    </Button>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,18,0,0" Visibility="{Binding IsLoading, Converter={StaticResource Vis}}">
+                        <ProgressBar IsIndeterminate="True" Width="160" Margin="0,0,10,0" />
+                        <TextBlock Text="{Binding LoadingText}" Style="{StaticResource Muted}" />
+                    </StackPanel>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- ============ Cabecera del vídeo abierto: preview + características ============ -->
+        <!-- Mientras convierte, todo queda bloqueado salvo Cancelar (y "Al terminar") -->
+        <Grid Grid.Row="2" Margin="0,0,0,12" Height="212" Visibility="{Binding HasFile, Converter={StaticResource Vis}}" IsEnabled="{Binding IsIdle}">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="320" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <DockPanel Grid.Column="0">
+                <DockPanel DockPanel.Dock="Bottom" Margin="0,6,0,0">
+                    <Button DockPanel.Dock="Left" Command="{Binding PrevFrameCommand}" ToolTip="Preview anterior" Padding="8,2" MinWidth="0">
+                        <TextBlock FontFamily="{StaticResource IconFont}" Text="&#xE76B;" />
+                    </Button>
+                    <Button DockPanel.Dock="Right" Command="{Binding NextFrameCommand}" ToolTip="Preview siguiente" Padding="8,2" MinWidth="0">
+                        <TextBlock FontFamily="{StaticResource IconFont}" Text="&#xE76C;" />
+                    </Button>
+                    <TextBlock Text="{Binding PreviewLabel}" ToolTip="{Binding PreviewTimeText}" Style="{StaticResource Muted}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                </DockPanel>
+                <Border CornerRadius="6" Background="Black" ClipToBounds="True">
+                    <Grid>
+                        <Image Source="{Binding PreviewImage}" Stretch="Uniform" />
+                        <ProgressBar IsIndeterminate="True" VerticalAlignment="Bottom" Height="3"
+                                     Visibility="{Binding PreviewLoading, Converter={StaticResource Vis}}" />
+                    </Grid>
+                </Border>
+            </DockPanel>
+            <DockPanel Grid.Column="1" Margin="16,0,0,0">
+                <TextBlock DockPanel.Dock="Top" Text="{Binding Info.FileName}" FontSize="16" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" ToolTip="{Binding Info.Path}" Margin="0,0,0,8" />
+                <ItemsControl DockPanel.Dock="Top" ItemsSource="{Binding Chips}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Border Style="{StaticResource Chip}">
+                                <TextBlock Text="{Binding}" FontSize="12" />
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="0,6,0,0" Visibility="{Binding IsLoading, Converter={StaticResource Vis}}">
+                    <ProgressBar IsIndeterminate="True" Width="120" Margin="0,0,8,0" />
+                    <TextBlock Text="{Binding LoadingText}" Style="{StaticResource Muted}" />
+                </StackPanel>
+                <!-- Detalles siempre visibles -->
+                <Border Style="{StaticResource Card}" Padding="12,8" Margin="0,2,0,0">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                        <ItemsControl ItemsSource="{Binding Details}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Grid Margin="0,2">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="92" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="{Binding Key}" Style="{StaticResource Muted}" />
+                                        <TextBox Grid.Column="1" Text="{Binding Value, Mode=OneWay}" IsReadOnly="True" BorderThickness="0" Background="Transparent"
+                                                 TextWrapping="Wrap" FontSize="12" Padding="0" MinHeight="0" />
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                </Border>
+            </DockPanel>
+        </Grid>
+
+        <!-- ============ Pestañas ============ -->
+        <DockPanel Grid.Row="3" Visibility="{Binding HasFile, Converter={StaticResource Vis}}" IsEnabled="{Binding IsIdle}">
+        <DockPanel DockPanel.Dock="Top" Margin="0,0,0,10">
+            <TextBlock DockPanel.Dock="Left" Text="Perfil" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,10,0" />
+            <ComboBox DockPanel.Dock="Left" Width="300" ItemsSource="{Binding ProfileOptions}" SelectedItem="{Binding SelectedProfile}"
+                      ToolTip="Conjunto de ajustes que se aplica al vídeo abierto y a los que abras después" />
+            <Button DockPanel.Dock="Left" Command="{Binding SaveProfileCommand}" Margin="8,0,0,0"
+                    ToolTip="Guarda las opciones actuales (vídeo, audio y salida) como un perfil tuyo">
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Style="{StaticResource IconText}" Text="&#xE74E;" />
+                    <TextBlock Style="{StaticResource ButtonLabel}" Text="Guardar como perfil…" />
+                </StackPanel>
+            </Button>
+            <Button DockPanel.Dock="Left" Command="{Binding DeleteProfileCommand}" Margin="4,0,0,0" Style="{StaticResource DangerIconButton}"
+                    ToolTip="Borrar este perfil (solo se pueden borrar los creados por ti)" ToolTipService.ShowOnDisabled="True">
+                <TextBlock FontFamily="{StaticResource IconFont}" Text="&#xE74D;" FontSize="16" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
+            </Button>
+            <Button DockPanel.Dock="Left" Style="{StaticResource HelpButton}" CommandParameter="perfiles" />
+            <TextBlock Text="{Binding ProfileDescription}" Style="{StaticResource Muted}" VerticalAlignment="Center" Margin="14,0,0,0"
+                       TextWrapping="Wrap" MaxHeight="34" TextTrimming="CharacterEllipsis" ToolTip="{Binding ProfileDescription}" />
+        </DockPanel>
+        <TabControl Style="{StaticResource PageTabs}" SelectedIndex="{Binding SelectedTab}" x:Name="Tabs">
+
+            <!-- ===== VÍDEO ===== -->
+            <TabItem Header="Vídeo">
+                <ScrollViewer Style="{StaticResource Page}">
+                    <StackPanel>
+                        <StackPanel Style="{StaticResource FirstSectionHeader}">
+                            <TextBlock Text="¿Qué hacer con el vídeo?" Style="{StaticResource SectionTitle}" />
+                            <Button Style="{StaticResource HelpButton}" CommandParameter="video-modo" />
+                        </StackPanel>
+                        <RadioButton Style="{StaticResource Radio}" GroupName="vmode" IsChecked="{Binding IsCopyMode}" IsEnabled="{Binding CanCopy}"
+                                     Content="Copiar sin recodificar (rápido y sin pérdida de calidad)" />
+                        <RadioButton Style="{StaticResource Radio}" GroupName="vmode" IsChecked="{Binding IsEncodeMode}" Content="Recodificar (comprimir con otro códec, recortar, cambiar resolución…)" />
+                        <TextBlock Text="{Binding CopyBlockedText}" Foreground="{DynamicResource SystemFillColorCautionBrush}" TextWrapping="Wrap" Margin="0,6,0,0"
+                                   Visibility="{Binding CopyBlockedText, Converter={StaticResource Vis}}" />
+                        <TextBlock Text="{Binding VideoModeText}" Style="{StaticResource Muted}" Margin="0,8,0,14" />
+
+                        <Border Style="{StaticResource Card}" Visibility="{Binding HdrText, Converter={StaticResource Vis}}">
+                            <DockPanel>
+                                <TextBlock DockPanel.Dock="Left" Style="{StaticResource IconText}" Text="&#xE706;" />
+                                <Button DockPanel.Dock="Right" Style="{StaticResource HelpButton}" CommandParameter="hdr" />
+                                <TextBlock Text="{Binding HdrText}" TextWrapping="Wrap" VerticalAlignment="Center" />
+                            </DockPanel>
+                        </Border>
+
+                        <StackPanel Style="{StaticResource SectionHeader}">
+                            <TextBlock Text="Opciones al recodificar" Style="{StaticResource SectionTitle}" />
+                        </StackPanel>
+                        <Grid IsEnabled="{Binding IsEncodeMode}" Style="{StaticResource DimmableGrid}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="180" />
+                                <ColumnDefinition Width="*" MaxWidth="640" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+
+                            <TextBlock Grid.Row="0" Text="Códec de vídeo" Style="{StaticResource Label}" />
+                            <ComboBox Grid.Row="0" Grid.Column="1" Style="{StaticResource FieldCombo}" ItemsSource="{Binding VideoCodecOptions}" SelectedItem="{Binding SelectedVideoCodec}" />
+                            <Button Grid.Row="0" Grid.Column="2" Style="{StaticResource HelpButton}" CommandParameter="codecs-video" />
+
+                            <TextBlock Grid.Row="1" Text="Codificador" Style="{StaticResource Label}" />
+                            <ComboBox Grid.Row="1" Grid.Column="1" Style="{StaticResource FieldCombo}" ItemsSource="{Binding BackendOptions}" SelectedItem="{Binding SelectedBackend}" />
+                            <Button Grid.Row="1" Grid.Column="2" Style="{StaticResource HelpButton}" CommandParameter="gpu-cpu" />
+
+                            <TextBlock Grid.Row="2" Text="Calidad" Style="{StaticResource Label}" />
+                            <StackPanel Grid.Row="2" Grid.Column="1" Margin="0,12">
+                                <DockPanel>
+                                    <TextBlock DockPanel.Dock="Right" Text="{Binding Quality}" Width="30" TextAlignment="Right" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                    <Slider Minimum="{Binding QualityMin}" Maximum="{Binding QualityMax}" TickFrequency="1" IsSnapToTickEnabled="True" Value="{Binding Quality}" IsDirectionReversed="True"
+                                            ToolTip="Hacia la derecha: más calidad y archivos más grandes" />
+                                </DockPanel>
+                                <DockPanel Margin="0,4,0,0">
+                                    <Button DockPanel.Dock="Right" Content="Valor recomendado" Command="{Binding ResetQualityCommand}" Padding="8,2" FontSize="12" />
+                                    <TextBlock Text="{Binding QualityHint}" Style="{StaticResource Muted}" VerticalAlignment="Center" />
+                                </DockPanel>
+                            </StackPanel>
+                            <Button Grid.Row="2" Grid.Column="2" Style="{StaticResource HelpButton}" CommandParameter="calidad" />
+
+                            <TextBlock Grid.Row="3" Text="Velocidad" Style="{StaticResource Label}" />
+                            <StackPanel Grid.Row="3" Grid.Column="1" Margin="0,12">
+                                <Slider Minimum="0" Maximum="4" TickFrequency="1" IsSnapToTickEnabled="True" TickPlacement="BottomRight" Value="{Binding Speed}" />
+                                <TextBlock Text="{Binding SpeedText}" Style="{StaticResource Hint}" />
+                            </StackPanel>
+                            <Button Grid.Row="3" Grid.Column="2" Style="{StaticResource HelpButton}" CommandParameter="velocidad" />
+
+                            <TextBlock Grid.Row="4" Text="Resolución máxima" Style="{StaticResource Label}" />
+                            <ComboBox Grid.Row="4" Grid.Column="1" Style="{StaticResource FieldCombo}" ItemsSource="{Binding ResolutionOptions}" SelectedItem="{Binding SelectedResolution}" />
+                            <Button Grid.Row="4" Grid.Column="2" Style="{StaticResource HelpButton}" CommandParameter="resolucion" />
+
+                            <TextBlock Grid.Row="5" Text="Bandas negras" Style="{StaticResource Label}" />
+                            <StackPanel Grid.Row="5" Grid.Column="1" Margin="0,12">
+                                <CheckBox Content="Recortar automáticamente" IsChecked="{Binding AutoCrop}" />
+                                <TextBlock Text="{Binding CropText}" Style="{StaticResource Hint}" />
+                            </StackPanel>
+                            <Button Grid.Row="5" Grid.Column="2" Style="{StaticResource HelpButton}" CommandParameter="recorte" />
+
+                            <TextBlock Grid.Row="6" Text="Desentrelazar" Style="{StaticResource Label}" />
+                            <ComboBox Grid.Row="6" Grid.Column="1" Style="{StaticResource FieldCombo}" ItemsSource="{Binding DeinterlaceOptions}" SelectedItem="{Binding SelectedDeinterlace}" />
+                            <Button Grid.Row="6" Grid.Column="2" Style="{StaticResource HelpButton}" CommandParameter="desentrelazado" />
+
+                            <TextBlock Grid.Row="7" Text="Reducir ruido o grano" Style="{StaticResource Label}" VerticalAlignment="Top" Margin="0,16,12,0" />
+                            <StackPanel Grid.Row="7" Grid.Column="1" Margin="0,9">
+                                <ComboBox ItemsSource="{Binding DenoiseOptions}" SelectedItem="{Binding SelectedDenoise}" HorizontalAlignment="Stretch" />
+                                <TextBlock Text="{Binding DenoiseText}" Style="{StaticResource Hint}" />
+                            </StackPanel>
+                            <Button Grid.Row="7" Grid.Column="2" Style="{StaticResource HelpButton}" CommandParameter="ruido" VerticalAlignment="Top" Margin="6,14,0,0" />
+                        </Grid>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- ===== AUDIO (pistas + corrección del volumen) ===== -->
+            <TabItem Header="Audio">
+                <ScrollViewer Style="{StaticResource Page}">
+                    <StackPanel>
+                        <StackPanel Style="{StaticResource FirstSectionHeader}">
+                            <TextBlock Text="Pistas de audio del vídeo convertido" Style="{StaticResource SectionTitle}" />
+                            <Button Style="{StaticResource HelpButton}" CommandParameter="codecs-audio" />
+                        </StackPanel>
+                        <DockPanel Margin="0,0,0,12">
+                            <Button DockPanel.Dock="Right" Content="Volver a elegir pistas" Command="{Binding ReselectTracksCommand}" Margin="12,0,0,0"
+                                    ToolTip="Descarta los cambios de pistas y vuelve a la selección automática" />
+                            <TextBlock Style="{StaticResource Muted}" FontSize="13" VerticalAlignment="Center">
+                                <Run Text="Se elige automáticamente el audio en" />
+                                <Run Text="{Binding PreferredLanguage.Name, Mode=OneWay}" FontWeight="SemiBold" />
+                                <Run Text="(tu idioma favorito, se cambia en Configuración)." />
+                            </TextBlock>
+                        </DockPanel>
+                        <TextBlock Text="No hay ninguna pista: el vídeo saldrá sin sonido. Añade una abajo." Foreground="{DynamicResource SystemFillColorCautionBrush}"
+                                   Visibility="{Binding HasAudioTracks, Converter={StaticResource NotVis}}" Margin="0,0,0,10" />
+                        <ItemsControl ItemsSource="{Binding AudioTracks}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Style="{StaticResource Card}">
+                                        <StackPanel>
+                                            <DockPanel>
+                                                <Button DockPanel.Dock="Right" Command="{Binding RemoveCommand}" ToolTip="Quitar esta pista del vídeo convertido" Padding="8,2" MinWidth="0" Margin="4,0,0,0">
+                                                    <TextBlock FontFamily="{StaticResource IconFont}" Text="&#xE711;" />
+                                                </Button>
+                                                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Visibility="{Binding CanReorder, Converter={StaticResource Vis}}">
+                                                    <Border Style="{StaticResource Chip}" Margin="0,0,8,0" VerticalAlignment="Center" ToolTip="{Binding OrderToolTip}">
+                                                        <TextBlock Text="{Binding OrderLabel}" FontSize="12" />
+                                                    </Border>
+                                                    <Button Command="{Binding MoveUpCommand}" Padding="8,2" MinWidth="0"
+                                                            ToolTip="Subir esta pista. La primera es la que suena al empezar la película; las demás se eligen desde el mando de la tele.">
+                                                        <TextBlock FontFamily="{StaticResource IconFont}" Text="&#xE70E;" />
+                                                    </Button>
+                                                    <Button Command="{Binding MoveDownCommand}" Padding="8,2" MinWidth="0" Margin="4,0,0,0" ToolTip="Bajar esta pista">
+                                                        <TextBlock FontFamily="{StaticResource IconFont}" Text="&#xE70D;" />
+                                                    </Button>
+                                                </StackPanel>
+                                                <TextBlock Text="{Binding SourceDescription}" FontWeight="SemiBold" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                                            </DockPanel>
+                                            <WrapPanel Margin="0,12,0,0">
+                                                <StackPanel Margin="0,0,16,4">
+                                                    <TextBlock Text="Idioma" Style="{StaticResource Muted}" Margin="0,0,0,4" />
+                                                    <ComboBox ItemsSource="{Binding LanguageOptions}" SelectedItem="{Binding Language}" Width="150" />
+                                                </StackPanel>
+                                                <StackPanel Margin="0,0,16,4">
+                                                    <TextBlock Text="Formato" Style="{StaticResource Muted}" Margin="0,0,0,4" />
+                                                    <ComboBox ItemsSource="{Binding CodecOptions}" SelectedItem="{Binding SelectedCodec}" Width="220" />
+                                                </StackPanel>
+                                                <StackPanel Margin="0,0,16,4" Visibility="{Binding HasBitrate, Converter={StaticResource Vis}}">
+                                                    <TextBlock Text="Calidad (kb/s)" Style="{StaticResource Muted}" Margin="0,0,0,4" />
+                                                    <ComboBox ItemsSource="{Binding BitrateOptions}" SelectedItem="{Binding Bitrate}" Width="100" />
+                                                </StackPanel>
+                                                <StackPanel Margin="0,0,16,4" Visibility="{Binding IsConverted, Converter={StaticResource Vis}}">
+                                                    <TextBlock Text="Volumen" Style="{StaticResource Muted}" Margin="0,0,0,4" />
+                                                    <ComboBox ItemsSource="{Binding VolumeOptions}" SelectedItem="{Binding SelectedVolume}" Width="150" />
+                                                </StackPanel>
+                                                <StackPanel Margin="0,0,16,4" Visibility="{Binding IsExternal, Converter={StaticResource Vis}}">
+                                                    <TextBlock Text="Retraso (ms)" Style="{StaticResource Muted}" Margin="0,0,0,4" />
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <TextBox Text="{Binding DelayMs, UpdateSourceTrigger=LostFocus}" Width="90"
+                                                                 ToolTip="Positivo: el audio suena más tarde. Negativo: antes." />
+                                                        <Button Command="{Binding SyncCommand}" Margin="8,0,0,0"
+                                                                ToolTip="Reproduce un trozo de la película con esta pista para ver si la voz coincide con los labios y ajustar el retraso">
+                                                            <StackPanel Orientation="Horizontal">
+                                                                <TextBlock Style="{StaticResource IconText}" Text="&#xE768;" />
+                                                                <TextBlock Style="{StaticResource ButtonLabel}" Text="Comprobar sincronización" />
+                                                            </StackPanel>
+                                                        </Button>
+                                                    </StackPanel>
+                                                </StackPanel>
+                                            </WrapPanel>
+                                            <DockPanel Margin="0,8,0,0">
+                                                <Button DockPanel.Dock="Right" Style="{StaticResource HelpButton}" CommandParameter="volumen-pista" VerticalAlignment="Top" />
+                                                <TextBlock Text="{Binding VolumeModeText}" Style="{StaticResource Muted}" FontSize="12.5" />
+                                            </DockPanel>
+                                        </StackPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <StackPanel Style="{StaticResource SectionHeader}" Margin="0,14,0,8">
+                            <TextBlock Text="Añadir pistas" Style="{StaticResource SectionTitle}" />
+                            <Button Style="{StaticResource HelpButton}" CommandParameter="pistas-audio" />
+                        </StackPanel>
+                        <WrapPanel>
+                            <ComboBox ItemsSource="{Binding SourceAudioOptions}" SelectedItem="{Binding SelectedSourceAudio}" Width="360" Margin="0,0,8,8" />
+                            <Button Content="Añadir convertida" Command="{Binding AddConvertedTrackCommand}" Margin="0,0,8,8"
+                                    ToolTip="Se convierte al formato elegido y se le aplica la corrección de volumen" />
+                            <Button Content="Añadir original (sin cambios)" Command="{Binding AddOriginalTrackCommand}" Margin="0,0,8,8"
+                                    ToolTip="Se copia tal cual: útil para una barra de sonido o un equipo de cine en casa" />
+                            <Button Command="{Binding AddExternalTrackCommand}" Margin="0,0,8,8">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Style="{StaticResource IconText}" Text="&#xE8E5;" />
+                                    <TextBlock Style="{StaticResource ButtonLabel}" Text="Desde un archivo…" />
+                                </StackPanel>
+                            </Button>
+                        </WrapPanel>
+
+                        <!-- Corrección del volumen -->
+                        <StackPanel Style="{StaticResource SectionHeader}" Margin="0,26,0,8">
+                            <TextBlock Text="Corrección del volumen (modo noche)" Style="{StaticResource SectionTitle}" />
+                            <Button Style="{StaticResource HelpButton}" CommandParameter="volumen" />
+                        </StackPanel>
+                        <TextBlock Style="{StaticResource Lead}"
+                                   Text="Para no tener que subir la tele en los diálogos y bajarla en las explosiones. Se hace en tres pasos: primero se destacan las voces, después se suavizan los golpes de sonido y por último se ajusta el volumen medio de toda la película. Solo se aplica a las pistas con el volumen en &quot;Modo noche&quot;." />
+
+                        <Border Style="{StaticResource Card}" Margin="0,0,0,8" Background="{DynamicResource SystemFillColorAttentionBackgroundBrush}"
+                                Visibility="{Binding HasNightTracks, Converter={StaticResource NotVis}}">
+                            <DockPanel>
+                                <TextBlock DockPanel.Dock="Left" Style="{StaticResource IconText}" Text="&#xE946;" VerticalAlignment="Top" Margin="0,2,10,0" />
+                                <TextBlock Text="{Binding VolumeAppliesText}" TextWrapping="Wrap" />
+                            </DockPanel>
+                        </Border>
+
+                        <Grid Style="{StaticResource DimmableGrid}" IsEnabled="{Binding HasNightTracks}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="180" />
+                                <ColumnDefinition Width="*" MaxWidth="820" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+
+                            <StackPanel VerticalAlignment="Top" Margin="0,12,12,0">
+                                <TextBlock Text="1. Realce de diálogos" FontWeight="SemiBold" />
+                                <TextBlock Text="Sube las voces frente a la música y los efectos." Style="{StaticResource Hint}" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" Margin="0,12">
+                                <DockPanel>
+                                    <TextBlock DockPanel.Dock="Left" Text="Nada" Style="{StaticResource Muted}" VerticalAlignment="Center" Margin="0,0,8,0" />
+                                    <TextBlock DockPanel.Dock="Right" Text="Máximo" Style="{StaticResource Muted}" VerticalAlignment="Center" Margin="8,0,0,0" />
+                                    <Slider Minimum="0" Maximum="10" TickFrequency="1" IsSnapToTickEnabled="True" TickPlacement="BottomRight" Value="{Binding DialogBoost}" />
+                                </DockPanel>
+                                <TextBlock Text="{Binding DialogBoostText}" TextWrapping="Wrap" Margin="0,6,0,0" />
+                                <TextBlock Text="{Binding DialogBoostNote}" Foreground="{DynamicResource SystemFillColorCautionBrush}" TextWrapping="Wrap" FontSize="12" Margin="0,4,0,0"
+                                           Visibility="{Binding DialogBoostNote, Converter={StaticResource Vis}}" />
+                            </StackPanel>
+                            <Button Grid.Column="2" Style="{StaticResource HelpButton}" CommandParameter="dialogos" VerticalAlignment="Top" Margin="6,14,0,0" />
+
+                            <StackPanel Grid.Row="1" VerticalAlignment="Top" Margin="0,12,12,0">
+                                <TextBlock Text="2. Compresión" FontWeight="SemiBold" />
+                                <TextBlock Text="Acerca el volumen de las partes fuertes al de las flojas." Style="{StaticResource Hint}" />
+                            </StackPanel>
+                            <StackPanel Grid.Row="1" Grid.Column="1" Margin="0,12">
+                                <DockPanel>
+                                    <TextBlock DockPanel.Dock="Left" Text="Nada" Style="{StaticResource Muted}" VerticalAlignment="Center" Margin="0,0,8,0" />
+                                    <TextBlock DockPanel.Dock="Right" Text="Máximo" Style="{StaticResource Muted}" VerticalAlignment="Center" Margin="8,0,0,0" />
+                                    <Slider Minimum="0" Maximum="10" TickFrequency="1" IsSnapToTickEnabled="True" TickPlacement="BottomRight" Value="{Binding Compression}" />
+                                </DockPanel>
+                                <TextBlock Text="{Binding CompressionText}" TextWrapping="Wrap" Margin="0,6,0,0" />
+                            </StackPanel>
+                            <Button Grid.Row="1" Grid.Column="2" Style="{StaticResource HelpButton}" CommandParameter="compresion" VerticalAlignment="Top" Margin="6,14,0,0" />
+
+                            <StackPanel Grid.Row="2" VerticalAlignment="Top" Margin="0,12,12,0">
+                                <TextBlock Text="3. Volumen final" FontWeight="SemiBold" />
+                                <TextBlock Text="Volumen medio al que queda la película." Style="{StaticResource Hint}" />
+                            </StackPanel>
+                            <StackPanel Grid.Row="2" Grid.Column="1" Margin="0,12">
+                                <ComboBox ItemsSource="{Binding TargetLufsOptions}" SelectedItem="{Binding SelectedTargetLufs}" HorizontalAlignment="Stretch" />
+                                <TextBlock Text="{Binding TargetLufsText}" TextWrapping="Wrap" Margin="0,6,0,0" />
+                            </StackPanel>
+                            <Button Grid.Row="2" Grid.Column="2" Style="{StaticResource HelpButton}" CommandParameter="lufs" VerticalAlignment="Top" Margin="6,16,0,0" />
+                        </Grid>
+
+                        <Border Style="{StaticResource Card}" Margin="0,10,0,4" Visibility="{Binding HasNightTracks, Converter={StaticResource Vis}}">
+                            <DockPanel>
+                                <TextBlock DockPanel.Dock="Left" Style="{StaticResource IconText}" Text="&#xE946;" VerticalAlignment="Top" Margin="0,2,10,0" />
+                                <TextBlock Text="{Binding VolumeAppliesText}" TextWrapping="Wrap" />
+                            </DockPanel>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- ===== SUBTÍTULOS ===== -->
+            <TabItem Header="Subtítulos">
+                <ScrollViewer Style="{StaticResource Page}">
+                    <StackPanel>
+                        <StackPanel Style="{StaticResource FirstSectionHeader}">
+                            <TextBlock Text="Subtítulos como pista (se activan desde la tele)" Style="{StaticResource SectionTitle}" />
+                            <Button Style="{StaticResource HelpButton}" CommandParameter="subtitulos" />
+                        </StackPanel>
+                        <TextBlock Text="Este vídeo no tiene subtítulos internos. Puedes quemar un archivo de subtítulos externo más abajo." Style="{StaticResource Lead}"
+                                   Visibility="{Binding HasSubtitles, Converter={StaticResource NotVis}}" />
+                        <TextBlock Style="{StaticResource Lead}" Visibility="{Binding HasSubtitles, Converter={StaticResource Vis}}"
+                                   Text="Junto a cada subtítulo verás cuántas líneas tiene. Los completos (todos los diálogos) tienen cientos o miles; los forzados (solo cuando se habla otro idioma, carteles…) apenas unas decenas. Los forzados se marcan para que la tele los muestre sola." />
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,12" Visibility="{Binding SubtitleCountText, Converter={StaticResource Vis}}">
+                            <ProgressBar IsIndeterminate="True" Width="100" Margin="0,0,10,0" VerticalAlignment="Center" />
+                            <TextBlock Text="{Binding SubtitleCountText}" Style="{StaticResource Muted}" VerticalAlignment="Center" />
+                        </StackPanel>
+                        <ItemsControl ItemsSource="{Binding SubtitleTracks}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Style="{StaticResource Card}">
+                                        <StackPanel>
+                                            <CheckBox IsChecked="{Binding Include}" IsEnabled="{Binding CanInclude}" Content="{Binding Description}" />
+                                            <TextBlock Text="{Binding Status}" Style="{StaticResource Hint}" Margin="28,2,0,0" />
+                                        </StackPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <StackPanel Style="{StaticResource SectionHeader}">
+                            <TextBlock Text="Quemar subtítulos en la imagen" Style="{StaticResource SectionTitle}" />
+                            <Button Style="{StaticResource HelpButton}" CommandParameter="quemar" />
+                        </StackPanel>
+                        <CheckBox Style="{StaticResource Check}" Content="Quemar subtítulos (siempre visibles, en cualquier reproductor)" IsChecked="{Binding BurnEnabled}" />
+                        <StackPanel Margin="28,10,0,0" IsEnabled="{Binding BurnEnabled}">
+                            <ComboBox ItemsSource="{Binding BurnOptions}" SelectedItem="{Binding SelectedBurnOption}" Width="460" HorizontalAlignment="Left" />
+                            <StackPanel Orientation="Horizontal" Margin="0,10,0,0" Visibility="{Binding BurnIsExternal, Converter={StaticResource Vis}}">
+                                <TextBlock Text="{Binding BurnExternalPath}" VerticalAlignment="Center" Margin="0,0,8,0" MaxWidth="700" TextTrimming="CharacterEllipsis" />
+                                <Button Content="Elegir archivo…" Command="{Binding BrowseBurnFileCommand}" />
+                            </StackPanel>
+                            <TextBlock Style="{StaticResource Hint}" Margin="0,10,0,0"
+                                       Text="Quemar subtítulos obliga a recodificar el vídeo, así que la conversión tardará más." />
+                        </StackPanel>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- ===== SALIDA ===== -->
+            <TabItem Header="Salida">
+                <ScrollViewer Style="{StaticResource Page}">
+                    <StackPanel>
+                        <StackPanel Style="{StaticResource FirstSectionHeader}">
+                            <TextBlock Text="Contenedor" Style="{StaticResource SectionTitle}" />
+                            <Button Style="{StaticResource HelpButton}" CommandParameter="contenedores" />
+                        </StackPanel>
+                        <DockPanel>
+                            <ComboBox DockPanel.Dock="Left" ItemsSource="{Binding ContainerOptions}" SelectedItem="{Binding SelectedContainer}" Width="140" />
+                            <TextBlock Text="{Binding ContainerHint}" Style="{StaticResource Muted}" VerticalAlignment="Center" Margin="12,0,0,0" />
+                        </DockPanel>
+
+                        <StackPanel Style="{StaticResource SectionHeader}">
+                            <TextBlock Text="Compatibilidad con la tele" Style="{StaticResource SectionTitle}" />
+                            <Button Style="{StaticResource HelpButton}" CommandParameter="tele-dlna" />
+                        </StackPanel>
+                        <TextBlock Style="{StaticResource Lead}"
+                                   Text="Muchas teles rechazan un vídeo por el contenedor o por el audio aunque sepan reproducirlo (por ejemplo, &quot;Reproducir en&quot; de Windows no envía MKV a las Samsung). Elige tu tele y Recodec comprobará si la acepta; los cambios solo se aplican si pulsas el botón." />
+                        <DockPanel Margin="0,0,0,10" LastChildFill="False">
+                            <TextBlock DockPanel.Dock="Left" Text="Preparar para" VerticalAlignment="Center" Margin="0,0,12,0" />
+                            <ComboBox DockPanel.Dock="Left" ItemsSource="{Binding TargetOptions}" SelectedItem="{Binding SelectedTarget}" MinWidth="380" />
+                            <Button DockPanel.Dock="Left" Command="{Binding ShowDevicesCommand}" Margin="8,0,0,0">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Style="{StaticResource IconText}" Text="&#xE721;" />
+                                    <TextBlock Style="{StaticResource ButtonLabel}" Text="Buscar mi tele en la red…" />
+                                </StackPanel>
+                            </Button>
+                        </DockPanel>
+                        <Border Style="{StaticResource Card}" Visibility="{Binding HasTvChecks, Converter={StaticResource Vis}}">
+                            <StackPanel>
+                                <DockPanel Margin="0,0,0,6">
+                                    <Button DockPanel.Dock="Right" Command="{Binding AdaptToTvCommand}" Style="{DynamicResource AccentButtonStyle}" Margin="12,0,0,0" VerticalAlignment="Top"
+                                            Visibility="{Binding HasPendingTvChanges, Converter={StaticResource Vis}}"
+                                            ToolTip="Cambia el contenedor, el vídeo o el audio lo justo para que la tele acepte el vídeo. Elegir la tele no cambia nada por sí solo.">
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Style="{StaticResource IconText}" Text="&#xE7F4;" />
+                                            <TextBlock Style="{StaticResource ButtonLabel}" Text="Aplicar ajustes para la tele" />
+                                        </StackPanel>
+                                    </Button>
+                                    <StackPanel VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding TvSummary}" TextWrapping="Wrap" FontWeight="SemiBold" />
+                                        <TextBlock Text="{Binding PendingTvChangesText}" Style="{StaticResource Muted}" FontSize="13" Margin="0,4,0,0"
+                                                   Visibility="{Binding PendingTvChangesText, Converter={StaticResource Vis}}" />
+                                    </StackPanel>
+                                </DockPanel>
+                                <ItemsControl ItemsSource="{Binding TvChecks}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <DockPanel Margin="0,3">
+                                                <TextBlock x:Name="Ico" DockPanel.Dock="Left" FontFamily="{StaticResource IconFont}" Text="{Binding Icon}" Width="24" Margin="0,2,0,0"
+                                                           VerticalAlignment="Top" Foreground="{DynamicResource SystemFillColorCriticalBrush}" />
+                                                <TextBlock Text="{Binding Text}" TextWrapping="Wrap" />
+                                            </DockPanel>
+                                            <DataTemplate.Triggers>
+                                                <DataTrigger Binding="{Binding IsOk}" Value="True">
+                                                    <Setter TargetName="Ico" Property="Foreground" Value="{DynamicResource SystemFillColorSuccessBrush}" />
+                                                </DataTrigger>
+                                                <DataTrigger Binding="{Binding IsWarning}" Value="True">
+                                                    <Setter TargetName="Ico" Property="Foreground" Value="{DynamicResource SystemFillColorCautionBrush}" />
+                                                </DataTrigger>
+                                            </DataTemplate.Triggers>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </Border>
+                        <TextBlock Text="{Binding TvSummary}" Style="{StaticResource Hint}" Visibility="{Binding HasTvChecks, Converter={StaticResource NotVis}}" />
+
+                        <StackPanel Style="{StaticResource SectionHeader}">
+                            <TextBlock Text="Opciones" Style="{StaticResource SectionTitle}" />
+                        </StackPanel>
+                        <CheckBox Style="{StaticResource Check}" Content="Conservar los capítulos" IsChecked="{Binding KeepChapters}" />
+                        <StackPanel Orientation="Horizontal">
+                            <CheckBox Style="{StaticResource Check}" Content="Optimizar para reproducción en red (MP4/MOV)" IsChecked="{Binding FastStart}" />
+                            <Button Style="{StaticResource HelpButton}" CommandParameter="faststart" />
+                        </StackPanel>
+                        <TextBlock Style="{StaticResource Hint}" Margin="0,6,0,0"
+                                   Text="Abrir la carpeta al terminar y recordar la carpeta de destino están en Configuración." />
+
+                        <StackPanel Style="{StaticResource SectionHeader}">
+                            <TextBlock Text="Comando de FFmpeg que se ejecutará" Style="{StaticResource SectionTitle}" />
+                            <Button Style="{StaticResource HelpButton}" CommandParameter="comando" />
+                        </StackPanel>
+                        <TextBox Text="{Binding CommandPreview, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" FontFamily="Cascadia Mono, Consolas" FontSize="12" MaxHeight="180"
+                                 VerticalScrollBarVisibility="Auto" />
+                        <Button Content="Copiar comando" Command="{Binding CopyCommandCommand}" HorizontalAlignment="Left" Margin="0,10,0,0" />
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- ===== REGISTRO ===== -->
+            <TabItem Header="Registro">
+                <DockPanel Margin="18,16,18,16">
+                    <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,10">
+                        <Button Content="Copiar registro" Command="{Binding CopyLogCommand}" />
+                        <Button Style="{StaticResource HelpButton}" CommandParameter="registro" />
+                    </StackPanel>
+                    <TextBox x:Name="LogBox" Text="{Binding LogText, Mode=OneWay}" IsReadOnly="True" FontFamily="Cascadia Mono, Consolas" FontSize="12"
+                             VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" TextChanged="LogBox_TextChanged" />
+                </DockPanel>
+            </TabItem>
+        </TabControl>
+        </DockPanel>
+
+        <!-- ============ Avisos ============ -->
+        <Border Grid.Row="4" Style="{StaticResource Card}" Margin="0,10,0,0" Background="{DynamicResource SystemFillColorCautionBackgroundBrush}"
+                Visibility="{Binding HasNotes, Converter={StaticResource Vis}}">
+            <DockPanel>
+                <TextBlock DockPanel.Dock="Left" Style="{StaticResource IconText}" Text="&#xE7BA;" VerticalAlignment="Top" Margin="0,2,10,0" />
+                <ItemsControl ItemsSource="{Binding Notes}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding}" TextWrapping="Wrap" Margin="0,1" />
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </DockPanel>
+        </Border>
+
+        <!-- ============ Guardar en ============ -->
+        <StackPanel Grid.Row="5" Margin="0,12,0,0" Visibility="{Binding HasFile, Converter={StaticResource Vis}}" IsEnabled="{Binding IsIdle}">
+            <DockPanel>
+                <TextBlock DockPanel.Dock="Left" Text="Guardar en" VerticalAlignment="Center" Margin="0,0,10,0" />
+                <Button DockPanel.Dock="Right" Content="Examinar…" Command="{Binding BrowseOutputCommand}" Margin="8,0,0,0" />
+                <TextBox Text="{Binding OutputPath, UpdateSourceTrigger=LostFocus}" />
+            </DockPanel>
+            <TextBlock Text="{Binding ErrorText}" Foreground="{DynamicResource SystemFillColorCriticalBrush}" Margin="0,4,0,0"
+                       Visibility="{Binding ErrorText, Converter={StaticResource Vis}}" />
+        </StackPanel>
+
+        <!-- ============ Progreso y botones ============ -->
+        <DockPanel Grid.Row="6" Margin="0,12,0,0">
+            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                <Button Command="{Binding EnqueueCommand}" Margin="8,0,0,0" Visibility="{Binding HasFile, Converter={StaticResource Vis}}" IsEnabled="{Binding IsIdle}"
+                        ToolTip="Guarda este vídeo con sus ajustes en la cola para convertirlo más tarde junto con otros">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Style="{StaticResource IconText}" Text="&#xE710;" />
+                        <TextBlock Style="{StaticResource ButtonLabel}" Text="Añadir a la cola" />
+                    </StackPanel>
+                </Button>
+                <Button Command="{Binding ConvertCommand}" Margin="8,0,0,0" Style="{DynamicResource AccentButtonStyle}"
+                        Visibility="{Binding IsIdle, Converter={StaticResource Vis}}">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Style="{StaticResource IconText}" Text="&#xE72A;" />
+                        <TextBlock Style="{StaticResource ButtonLabel}" Text="Convertir" />
+                    </StackPanel>
+                </Button>
+                <Button Command="{Binding ShowProgressCommand}" Margin="8,0,0,0" Style="{DynamicResource AccentButtonStyle}"
+                        Visibility="{Binding IsRunning, Converter={StaticResource Vis}}" ToolTip="Muestra la ventana con el progreso de la conversión">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Style="{StaticResource IconText}" Text="&#xE9D9;" />
+                        <TextBlock Style="{StaticResource ButtonLabel}" Text="Ver progreso" />
+                    </StackPanel>
+                </Button>
+                <Button Command="{Binding CancelCommand}" Margin="8,0,0,0" Visibility="{Binding IsRunning, Converter={StaticResource Vis}}">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Style="{StaticResource IconText}" Text="&#xE711;" />
+                        <TextBlock Style="{StaticResource ButtonLabel}" Text="Cancelar" />
+                    </StackPanel>
+                </Button>
+            </StackPanel>
+            <!-- El progreso se ve en su propia ventana; aquí solo el estado y el tiempo estimado -->
+            <StackPanel VerticalAlignment="Center" Margin="0,0,12,0">
+                <TextBlock Text="{Binding StatusText}" TextTrimming="CharacterEllipsis" ToolTip="{Binding StatusText}" />
+                <TextBlock Text="{Binding EstimateText}" Style="{StaticResource Muted}" Margin="0,3,0,0"
+                           Visibility="{Binding IsIdle, Converter={StaticResource Vis}}" />
+            </StackPanel>
+        </DockPanel>
+    </Grid>
+</Window>

@@ -1,0 +1,10 @@
+# Compilación
+bin/
+obj/
+/publicado/
+*.user
+.vs/
+
+# FFmpeg y ajustes locales (no se suben). Solo en la raíz: src/Recodec.Core/Ffmpeg/ es código.
+/ffmpeg/
+Recodec.settings.json

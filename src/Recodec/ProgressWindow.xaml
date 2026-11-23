@@ -1,0 +1,155 @@
+<Window x:Class="Recodec.ProgressWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:inf="clr-namespace:Recodec.Infrastructure"
+        Title="Convirtiendo — Recodec" Width="560" SizeToContent="Height" ResizeMode="NoResize"
+        WindowStartupLocation="CenterOwner" Icon="/Recodec.ico" ShowInTaskbar="False">
+    <Window.Resources>
+        <inf:PercentWidthConverter x:Key="PercentWidth" />
+        <Style x:Key="StatLabel" TargetType="TextBlock" BasedOn="{StaticResource Muted}">
+            <Setter Property="Margin" Value="0,0,0,2" />
+        </Style>
+        <Style x:Key="StatValue" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="15" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+        </Style>
+        <Style x:Key="TaskIcon" TargetType="TextBlock" BasedOn="{StaticResource IconText}">
+            <Setter Property="VerticalAlignment" Value="Top" />
+            <Setter Property="Margin" Value="0,2,10,0" />
+            <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}" />
+        </Style>
+    </Window.Resources>
+
+    <StackPanel Margin="22,18,22,18" DataContext="{Binding Run}">
+        <!-- Cabecera: animación + vídeo -->
+        <DockPanel Margin="0,0,0,16">
+            <Grid DockPanel.Dock="Left" Width="34" Height="34" Margin="0,0,14,0" VerticalAlignment="Center">
+                <Ellipse Stroke="{DynamicResource ControlStrokeColorDefaultBrush}" StrokeThickness="4" />
+                <Path Data="M 17,2 A 15,15 0 0 1 32,17" Stroke="{DynamicResource AccentFillColorDefaultBrush}" StrokeThickness="4"
+                      StrokeStartLineCap="Round" StrokeEndLineCap="Round" RenderTransformOrigin="0.5,0.5" Width="34" Height="34">
+                    <Path.RenderTransform>
+                        <RotateTransform x:Name="Spin" />
+                    </Path.RenderTransform>
+                    <Path.Triggers>
+                        <EventTrigger RoutedEvent="Loaded">
+                            <BeginStoryboard>
+                                <Storyboard>
+                                    <DoubleAnimation Storyboard.TargetName="Spin" Storyboard.TargetProperty="Angle" From="0" To="360"
+                                                     Duration="0:0:1.1" RepeatBehavior="Forever" />
+                                </Storyboard>
+                            </BeginStoryboard>
+                        </EventTrigger>
+                    </Path.Triggers>
+                </Path>
+            </Grid>
+            <StackPanel VerticalAlignment="Center">
+                <TextBlock Text="{Binding FileName}" FontSize="16" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" ToolTip="{Binding FileName}" />
+                <TextBlock Text="{Binding ItemText}" Style="{StaticResource Muted}" FontSize="13" Margin="0,2,0,0" />
+            </StackPanel>
+        </DockPanel>
+
+        <!-- Porcentaje y barra -->
+        <DockPanel Margin="0,0,0,8">
+            <TextBlock DockPanel.Dock="Right" Text="{Binding RemainingText}" Style="{StaticResource Muted}" FontSize="13" VerticalAlignment="Bottom" Margin="0,0,0,6" />
+            <TextBlock Text="{Binding PercentText}" FontSize="34" FontWeight="SemiBold" />
+        </DockPanel>
+        <Border x:Name="Track" Height="8" CornerRadius="4" Background="{DynamicResource ControlStrokeColorDefaultBrush}" ClipToBounds="True">
+            <Border HorizontalAlignment="Left" CornerRadius="4" Background="{DynamicResource AccentFillColorDefaultBrush}" ClipToBounds="True">
+                <Border.Width>
+                    <MultiBinding Converter="{StaticResource PercentWidth}">
+                        <Binding Path="Percent" />
+                        <Binding ElementName="Track" Path="ActualWidth" />
+                    </MultiBinding>
+                </Border.Width>
+                <!-- Brillo que recorre la barra: deja claro que sigue trabajando aunque el porcentaje tarde en cambiar -->
+                <Rectangle Width="90" HorizontalAlignment="Left" Opacity="0.45">
+                    <Rectangle.Fill>
+                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                            <GradientStop Color="#00FFFFFF" Offset="0" />
+                            <GradientStop Color="#FFFFFFFF" Offset="0.5" />
+                            <GradientStop Color="#00FFFFFF" Offset="1" />
+                        </LinearGradientBrush>
+                    </Rectangle.Fill>
+                    <Rectangle.RenderTransform>
+                        <TranslateTransform x:Name="Shine" />
+                    </Rectangle.RenderTransform>
+                    <Rectangle.Triggers>
+                        <EventTrigger RoutedEvent="Loaded">
+                            <BeginStoryboard>
+                                <Storyboard>
+                                    <DoubleAnimation Storyboard.TargetName="Shine" Storyboard.TargetProperty="X" From="-90" To="560"
+                                                     Duration="0:0:1.8" RepeatBehavior="Forever" />
+                                </Storyboard>
+                            </BeginStoryboard>
+                        </EventTrigger>
+                    </Rectangle.Triggers>
+                </Rectangle>
+            </Border>
+        </Border>
+
+        <!-- Datos -->
+        <Grid Margin="0,18,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition /><ColumnDefinition /><ColumnDefinition />
+            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition /><RowDefinition />
+            </Grid.RowDefinitions>
+            <StackPanel Margin="0,0,0,12">
+                <TextBlock Text="Velocidad" Style="{StaticResource StatLabel}" ToolTip="Veces más rápido que la duración del vídeo" />
+                <TextBlock Text="{Binding SpeedText}" Style="{StaticResource StatValue}" />
+            </StackPanel>
+            <StackPanel Grid.Column="1" Margin="0,0,0,12">
+                <TextBlock Text="Transcurrido" Style="{StaticResource StatLabel}" />
+                <TextBlock Text="{Binding ElapsedText}" Style="{StaticResource StatValue}" />
+            </StackPanel>
+            <StackPanel Grid.Column="2" Margin="0,0,0,12">
+                <TextBlock Text="Tamaño final" Style="{StaticResource StatLabel}" ToolTip="Calculado con lo que ya se ha escrito" />
+                <TextBlock Text="{Binding FinalSizeText}" Style="{StaticResource StatValue}" />
+            </StackPanel>
+            <StackPanel Grid.Row="1">
+                <TextBlock Text="Fotogramas por segundo" Style="{StaticResource StatLabel}" />
+                <TextBlock Text="{Binding FpsText}" Style="{StaticResource StatValue}" />
+            </StackPanel>
+            <StackPanel Grid.Row="1" Grid.Column="1">
+                <TextBlock Text="Minuto de la película" Style="{StaticResource StatLabel}" />
+                <TextBlock Text="{Binding PositionText}" Style="{StaticResource StatValue}" />
+            </StackPanel>
+            <StackPanel Grid.Row="1" Grid.Column="2">
+                <TextBlock Text="Escrito" Style="{StaticResource StatLabel}" />
+                <TextBlock Text="{Binding WrittenText}" Style="{StaticResource StatValue}" />
+            </StackPanel>
+        </Grid>
+
+        <!-- Qué está haciendo -->
+        <Border Margin="0,16,0,0" Padding="14,10" CornerRadius="8" Background="{DynamicResource SubtleFillColorSecondaryBrush}">
+            <StackPanel>
+                <DockPanel Margin="0,2">
+                    <TextBlock Style="{StaticResource TaskIcon}" Text="&#xE714;" />
+                    <TextBlock Text="{Binding VideoTask}" TextWrapping="Wrap" FontSize="13" />
+                </DockPanel>
+                <DockPanel Margin="0,2">
+                    <TextBlock Style="{StaticResource TaskIcon}" Text="&#xE767;" />
+                    <TextBlock Text="{Binding AudioTask}" TextWrapping="Wrap" FontSize="13" />
+                </DockPanel>
+                <DockPanel Margin="0,2">
+                    <TextBlock Style="{StaticResource TaskIcon}" Text="&#xE7F0;" />
+                    <TextBlock Text="{Binding SubtitleTask}" TextWrapping="Wrap" FontSize="13" />
+                </DockPanel>
+            </StackPanel>
+        </Border>
+
+        <!-- Al terminar y cancelar (estos usan la ventana principal como contexto) -->
+        <DockPanel Margin="0,18,0,0" DataContext="{Binding DataContext, RelativeSource={RelativeSource AncestorType=Window}}">
+            <Button DockPanel.Dock="Right" Command="{Binding CancelCommand}" MinWidth="110">
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Style="{StaticResource IconText}" Text="&#xE711;" />
+                    <TextBlock Style="{StaticResource ButtonLabel}" Text="Cancelar" />
+                </StackPanel>
+            </Button>
+            <TextBlock DockPanel.Dock="Left" Text="Al terminar" VerticalAlignment="Center" Style="{StaticResource Muted}" FontSize="13" Margin="0,0,8,0" />
+            <ComboBox ItemsSource="{Binding WhenDoneOptions}" SelectedItem="{Binding SelectedWhenDone}" Width="200" HorizontalAlignment="Left"
+                      ToolTip="Qué hace el equipo cuando termina toda la cola. Antes de suspender o apagar hay una cuenta atrás de 60 s para cancelarlo." />
+        </DockPanel>
+    </StackPanel>
+</Window>
